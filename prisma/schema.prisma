@@ -6,3 +6,160 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum ChannelType {
+  WHATSAPP
+  INSTAGRAM
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+  FAILED
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  whatsappAccounts WhatsAppAccount[]
+  customers      Customer[]
+  conversations  Conversation[]
+  campaigns      Campaign[]
+}
+
+model User {
+  id           String       @id @default(uuid())
+  organizationId String
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         UserRole     @default(MEMBER)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model WhatsAppAccount {
+  id              String   @id @default(uuid())
+  organizationId  String
+  phoneNumberId   String   @unique
+  wabaId          String
+  businessId      String?
+  phoneNumber     String?
+  displayName     String?
+  accessToken     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  campaigns     Campaign[]
+
+  @@index([organizationId])
+}
+
+model Customer {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String?
+  phone          String
+  email          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@unique([organizationId, phone])
+  @@index([organizationId])
+}
+
+model Conversation {
+  id                String             @id @default(uuid())
+  organizationId    String
+  customerId        String
+  whatsappAccountId String
+  channel           ChannelType        @default(WHATSAPP)
+  status            ConversationStatus @default(OPEN)
+  lastMessageAt     DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  whatsappAccount WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([whatsappAccountId])
+}
+
+model Message {
+  id             String          @id @default(uuid())
+  conversationId String
+  direction      MessageDirection
+  status         MessageStatus   @default(PENDING)
+  content        String
+  externalId     String?
+  aiGenerated    Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([externalId])
+}
+
+model Campaign {
+  id                String         @id @default(uuid())
+  organizationId    String
+  whatsappAccountId String
+  name              String
+  messageTemplate   String
+  status            CampaignStatus @default(DRAFT)
+  scheduledAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  whatsappAccount WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([whatsappAccountId])
+}
