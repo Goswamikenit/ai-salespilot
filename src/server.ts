@@ -11,7 +11,7 @@ import campaignRoutes from "./routes/campaign.routes";
 import authRoutes from "./routes/auth.routes";
 import whatsappWebhookRoutes from "./routes/webhook/whatsappWebhook.routes";
 import aiRoutes from "./routes/ai.routes";
-
+import whatsappRoutes from "./routes/whatsapp.routes";
 const app = express();
 
 const PORT = process.env.PORT || 5000;
@@ -27,6 +27,8 @@ app.use("/api/conversations", conversationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/webhooks/whatsapp", whatsappWebhookRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/ai", aiRoutes);
