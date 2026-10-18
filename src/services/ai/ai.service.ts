@@ -115,3 +115,35 @@ export async function saveAIMessage(
 
   return messages[0];
 }
+
+export async function markAIMessageAsSent(
+  messageId: string,
+  externalId: string
+) {
+  await db.execute(
+    `UPDATE messages
+     SET
+       status = 'SENT',
+       external_id = ?
+     WHERE id = ?`,
+    [externalId, messageId]
+  );
+
+  const [messages]: any = await db.execute(
+    `SELECT
+       id,
+       conversation_id,
+       direction,
+       status,
+       content,
+       external_id,
+       ai_generated,
+       created_at
+     FROM messages
+     WHERE id = ?
+     LIMIT 1`,
+    [messageId]
+  );
+
+  return messages[0];
+}

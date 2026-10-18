@@ -11,7 +11,12 @@ import {
 import {
   generateAIResponse,
   saveAIMessage,
+  markAIMessageAsSent,
 } from "../../services/ai/ai.service";
+
+import {
+  sendWhatsAppTextMessage,
+} from "../../services/whatsapp/whatsapp.service";
 
 // =========================================
 // WhatsApp Webhook Verification
@@ -172,7 +177,6 @@ export async function receiveWhatsAppWebhook(
           success: true,
           message:
             "Status received but not supported yet",
-
           data: {
             status:
               whatsappStatus,
@@ -197,10 +201,8 @@ export async function receiveWhatsAppWebhook(
       if (!updatedMessage) {
         return res.status(200).json({
           success: true,
-
           message:
             "Status received, but message was not found",
-
           data: {
             externalMessageId,
             status:
@@ -225,10 +227,8 @@ export async function receiveWhatsAppWebhook(
 
       return res.status(200).json({
         success: true,
-
         message:
           "Message status updated successfully",
-
         data: {
           messageId:
             updatedMessage.id,
@@ -383,10 +383,8 @@ export async function receiveWhatsAppWebhook(
     ) {
       return res.status(200).json({
         success: true,
-
         message:
           "Webhook received, but message type is not supported yet",
-
         data: {
           messageType,
         },
@@ -507,14 +505,64 @@ export async function receiveWhatsAppWebhook(
     );
 
     // =========================================
-    // 12. Final Response
+    // 12. Send AI Response to WhatsApp
+    // =========================================
+
+    const whatsappSendResult =
+      await sendWhatsAppTextMessage(
+        phoneNumberId,
+        customerPhone,
+        aiResponse.reply
+      );
+
+    console.log(
+      "📤 AI response sent to WhatsApp:",
+      {
+        messageId:
+          whatsappSendResult.messageId,
+      }
+    );
+
+    // =========================================
+    // 13. Mark AI Message as SENT
+    // =========================================
+
+    let sentAIMessage =
+      aiMessage;
+
+    if (
+      whatsappSendResult.messageId
+    ) {
+      sentAIMessage =
+        await markAIMessageAsSent(
+          aiMessage.id,
+          whatsappSendResult.messageId
+        );
+
+      console.log(
+        "✅ AI message marked as SENT:",
+        {
+          messageId:
+            sentAIMessage.id,
+
+          externalId:
+            sentAIMessage.external_id,
+
+          status:
+            sentAIMessage.status,
+        }
+      );
+    }
+
+    // =========================================
+    // 14. Final Response
     // =========================================
 
     return res.status(200).json({
       success: true,
 
       message:
-        "Webhook received and AI response generated successfully",
+        "Webhook received, AI response generated and sent successfully",
 
       data: {
         // WhatsApp Account
@@ -551,7 +599,7 @@ export async function receiveWhatsAppWebhook(
 
         // AI Response
         aiMessageId:
-          aiMessage.id,
+          sentAIMessage.id,
 
         aiReply:
           aiResponse.reply,
@@ -563,10 +611,13 @@ export async function receiveWhatsAppWebhook(
           aiResponse.confidence,
 
         aiMessageStatus:
-          aiMessage.status,
+          sentAIMessage.status,
+
+        aiExternalId:
+          sentAIMessage.external_id,
 
         aiGenerated:
-          aiMessage.ai_generated,
+          sentAIMessage.ai_generated,
       },
     });
   } catch (error) {
